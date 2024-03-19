@@ -38,7 +38,7 @@ class MainActivity : AppCompatActivity(), WebViewClientListener {
         browserWebViewClient.webViewClientListener = this
         webView.let {
             it.webViewClient = browserWebViewClient
-            navigate("https://farm.mcinext.com/")
+            navigate("https://example.com/")
         }
     }
 
