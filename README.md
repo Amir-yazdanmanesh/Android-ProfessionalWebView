@@ -72,7 +72,7 @@ class MainActivity : AppCompatActivity(), WebViewClientListener {
 ### Android-AdvancedWebView
 This project uses Android-AdvancedWebView, which is licensed under the MIT License. The MIT License is a permissive license that allows you to use, modify, and distribute the software as long as you include the original copyright and license notice. See the [LICENSE-AdvancedWebView.md](https://github.com/delight-im/Android-AdvancedWebView?tab=MIT-1-ov-file#readme) file for more details.
 
-### DuckDuckGo Android Classes
+### DuckDuckGo Android 
 This project includes classes from the DuckDuckGo Android repository, which are licensed under the Apache License 2.0. The Apache License 2.0 is a more complex license that provides extensive permissions and limitations for use, modification, and distribution of the software. See the [LICENSE-DuckDuckGo.md](https://github.com/duckduckgo/Android?tab=Apache-2.0-1-ov-file#readme) file for more details.
 
 
