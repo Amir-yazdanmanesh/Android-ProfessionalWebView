@@ -136,4 +136,14 @@ class MainActivity : AppCompatActivity(), WebViewClientListener {
     private fun navigate(url: String) {
         webView.loadUrl(url)
     }
+
+    override fun onRequestPermissionsResult(
+        requestCode: Int,
+        permissions: Array<out String>,
+        grantResults: IntArray
+    ) {
+        webView.onRequestPermissionsResult(requestCode, permissions, grantResults)
+        super.onRequestPermissionsResult(requestCode, permissions, grantResults)
+    }
+
 }
