@@ -1,5 +1,6 @@
 package com.yazdanmanesh.professionalwebview
 
+import android.Manifest
 import android.annotation.SuppressLint
 import android.app.Activity
 import android.app.DownloadManager
@@ -17,6 +18,7 @@ import android.util.Base64
 import android.view.View
 import android.view.ViewGroup
 import android.webkit.*
+import androidx.core.app.ActivityCompat
 import java.io.UnsupportedEncodingException
 import java.lang.ref.WeakReference
 import java.util.*
@@ -42,6 +44,9 @@ class ProfessionalWebView : WebView {
     private var mGeolocationEnabled = false
     private var mUploadableFileTypes = "*/*"
     private val mHttpHeaders: MutableMap<String, String> = HashMap()
+    var mRequest: PermissionRequest? = null
+    var mCallback: GeolocationPermissions.Callback? = null
+    var locationOrigin:String? = null
 
     constructor(context: Context) : super(context) {
         init(context)
@@ -402,11 +407,22 @@ class ProfessionalWebView : WebView {
             override fun onGeolocationPermissionsShowPrompt(
                 origin: String, callback: GeolocationPermissions.Callback
             ) {
-                if (mGeolocationEnabled) {
-                    callback.invoke(origin, true, false)
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M && context.checkSelfPermission(
+                        Manifest.permission.ACCESS_FINE_LOCATION
+                    ) != PackageManager.PERMISSION_GRANTED
+                ) {
+                    mCallback = callback
+                    locationOrigin = origin
+                    mActivity?.get()?.let {
+                        ActivityCompat.requestPermissions(
+                            it,
+                            arrayOf(Manifest.permission.ACCESS_FINE_LOCATION),
+                            LOCATION_REQUEST_CODE,
+                        )
+                    }
+
                 } else {
-                    mCustomWebChromeClient?.onGeolocationPermissionsShowPrompt(origin, callback)
-                        ?: super.onGeolocationPermissionsShowPrompt(origin, callback)
+                    callback.invoke(origin, true, false)
                 }
             }
 
@@ -416,10 +432,27 @@ class ProfessionalWebView : WebView {
             }
 
             override fun onPermissionRequest(request: PermissionRequest) {
-                mCustomWebChromeClient?.onPermissionRequest(request)
-                    ?: super.onPermissionRequest(request)
-
-
+                // Check if the device's Android version is Marshmallow or later
+                // and if the app lacks permission to access the camera and the request is for video capture
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M &&
+                    context.checkSelfPermission(Manifest.permission.CAMERA) != PackageManager.PERMISSION_GRANTED &&
+                    request.resources.contains(PermissionRequest.RESOURCE_VIDEO_CAPTURE)
+                ) {
+                    // Store the permission request
+                    mRequest = request
+                    // Retrieve the activity associated with this client
+                    mActivity?.get()?.let {
+                        // Request CAMERA permission from the user
+                        ActivityCompat.requestPermissions(
+                            it,
+                            arrayOf(Manifest.permission.CAMERA),
+                            CAMERA_REQUEST_CODE,
+                        )
+                    }
+                } else {
+                    // If permission is already granted or not required, grant the requested resources
+                    request.grant(request.resources);
+                }
             }
 
             override fun onPermissionRequestCanceled(request: PermissionRequest) {
@@ -587,7 +620,7 @@ class ProfessionalWebView : WebView {
      */
     private fun decodeBase64(encoded: String): String {
         return String(
-            android.util.Base64.decode(encoded, android.util.Base64.DEFAULT),
+            Base64.decode(encoded, Base64.DEFAULT),
             Charsets.UTF_8
         )
     }
@@ -619,84 +652,24 @@ class ProfessionalWebView : WebView {
         )
     }
 
-    /**
-     * Wrapper for methods related to alternative browsers that have their own rendering engines
-     */
-    object Browsers {
-        /**
-         * Package name of an alternative browser that is installed on this device
-         */
-        private var mAlternativePackage: String? = null
-
-        /**
-         * Returns whether there is an alternative browser with its own rendering engine currently installed
-         *
-         * @param context a valid `Context` reference
-         * @return whether there is an alternative browser or not
-         */
-        fun hasAlternative(context: Context): Boolean {
-            return getAlternative(context) != null
+    fun onRequestPermissionsResult(
+        requestCode: Int,
+        permissions: Array<out String>,
+        grantResults: IntArray
+    ) {
+        if (requestCode == CAMERA_REQUEST_CODE) {
+            mRequest?.grant(mRequest?.resources)
+        } else if (requestCode == LOCATION_REQUEST_CODE) {
+            mCallback?.invoke(locationOrigin, true, false)
         }
-
-        /**
-         * Returns the package name of an alternative browser with its own rendering engine or `null`
-         *
-         * @param context a valid `Context` reference
-         * @return the package name or `null`
-         */
-        fun getAlternative(context: Context): String? {
-            mAlternativePackage?.let { return it }
-
-            val alternativeBrowsers = ALTERNATIVE_BROWSERS.toList()
-            val apps = context.packageManager.getInstalledApplications(PackageManager.GET_META_DATA)
-            for (app in apps) {
-                if (!app.enabled) {
-                    continue
-                }
-                if (alternativeBrowsers.contains(app.packageName)) {
-                    mAlternativePackage = app.packageName
-                    return app.packageName
-                }
-            }
-            return null
-        }
-
-        /**
-         * Opens the given URL in an alternative browser
-         *
-         * @param context           a valid `Activity` reference
-         * @param url               the URL to open
-         * @param withoutTransition whether to switch to the browser `Activity` without a transition
-         */
-        /**
-         * Opens the given URL in an alternative browser
-         *
-         * @param context a valid `Activity` reference
-         * @param url     the URL to open
-         */
-        @JvmOverloads
-        fun openUrl(context: Activity, url: String?, withoutTransition: Boolean = false) {
-            url?.let {
-                val intent = Intent(Intent.ACTION_VIEW, Uri.parse(it))
-                intent.setPackage(getAlternative(context))
-                intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
-                context.startActivity(intent)
-                if (withoutTransition) {
-                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.UPSIDE_DOWN_CAKE) {
-                        context.overrideActivityTransition(Activity.OVERRIDE_TRANSITION_OPEN, 0, 0)
-                    } else {
-                        context.overridePendingTransition(0, 0)
-                    }
-                }
-            }
-        }
-
     }
+
 
     companion object {
         const val PACKAGE_NAME_DOWNLOAD_MANAGER = "com.android.providers.downloads"
         private const val REQUEST_CODE_FILE_PICKER = 51426
-        private const val DATABASES_SUB_FOLDER = "/databases"
+        const val CAMERA_REQUEST_CODE = 113
+        const val LOCATION_REQUEST_CODE = 115
         private const val LANGUAGE_DEFAULT_ISO3 = "eng"
         private val CHARSET_DEFAULT = Charsets.UTF_8
 
