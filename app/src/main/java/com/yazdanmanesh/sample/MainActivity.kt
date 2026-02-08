@@ -10,6 +10,7 @@ import android.webkit.WebView
 import android.widget.ProgressBar
 import android.widget.Toast
 import androidx.activity.OnBackPressedCallback
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AppCompatActivity
 import com.yazdanmanesh.professionalwebview.BrowserWebViewClient
 import com.yazdanmanesh.professionalwebview.ProfessionalWebView
@@ -22,12 +23,22 @@ class MainActivity : AppCompatActivity(), WebViewClientListener {
     private lateinit var webView: ProfessionalWebView
     private lateinit var loading: ProgressBar
 
+    private val filePickerLauncher = registerForActivityResult(
+        ActivityResultContracts.OpenMultipleDocuments()
+    ) { uris ->
+        webView.onFilePickerResult(uris)
+    }
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_main)
 
         webView = findViewById(R.id.browserWebView)
         loading = findViewById(R.id.webview_loading)
+
+        webView.setFilePickerLauncher { mimeType, _ ->
+            filePickerLauncher.launch(arrayOf(mimeType))
+        }
 
         val specialUrlDetectorImpl = SpecialUrlDetectorImpl(this)
         val browserWebViewClient = BrowserWebViewClient(specialUrlDetectorImpl)

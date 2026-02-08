@@ -37,6 +37,11 @@ class ProfessionalWebView : WebView {
     private var permissionRequest: PermissionRequest? = null
     private var geolocationCallback: GeolocationPermissions.Callback? = null
     private var geolocationOrigin: String? = null
+    private var filePickerLauncher: FilePickerLauncher? = null
+
+    fun interface FilePickerLauncher {
+        fun launchFilePicker(mimeType: String, allowMultiple: Boolean)
+    }
 
     constructor(context: Context) : super(context) {
         init(context)
@@ -95,6 +100,20 @@ class ProfessionalWebView : WebView {
         destroy()
     }
 
+    fun setFilePickerLauncher(launcher: FilePickerLauncher) {
+        filePickerLauncher = launcher
+    }
+
+    fun onFilePickerResult(uris: List<Uri>?) {
+        if (uris.isNullOrEmpty()) {
+            fileUploadCallback?.onReceiveValue(null)
+        } else {
+            fileUploadCallback?.onReceiveValue(uris.toTypedArray())
+        }
+        fileUploadCallback = null
+    }
+
+    @Deprecated("Use setFilePickerLauncher() and onFilePickerResult() with ActivityResultContracts instead")
     fun onActivityResult(requestCode: Int, resultCode: Int, intent: Intent?) {
         if (requestCode == requestCodeFilePicker) {
             if (resultCode == Activity.RESULT_OK) {
@@ -493,18 +512,23 @@ class ProfessionalWebView : WebView {
         fileUploadCallback?.onReceiveValue(null)
         fileUploadCallback = callback
 
-        val intent = Intent(Intent.ACTION_GET_CONTENT).apply {
-            addCategory(Intent.CATEGORY_OPENABLE)
-            type = uploadableFileTypes
-            if (allowMultiple) {
-                putExtra(Intent.EXTRA_ALLOW_MULTIPLE, true)
+        val launcher = filePickerLauncher
+        if (launcher != null) {
+            launcher.launchFilePicker(uploadableFileTypes, allowMultiple)
+        } else {
+            @Suppress("DEPRECATION")
+            val intent = Intent(Intent.ACTION_GET_CONTENT).apply {
+                addCategory(Intent.CATEGORY_OPENABLE)
+                type = uploadableFileTypes
+                if (allowMultiple) {
+                    putExtra(Intent.EXTRA_ALLOW_MULTIPLE, true)
+                }
             }
+            activityRef?.get()?.startActivityForResult(
+                Intent.createChooser(intent, fileUploadPromptLabel),
+                requestCodeFilePicker
+            )
         }
-
-        activityRef?.get()?.startActivityForResult(
-            Intent.createChooser(intent, fileUploadPromptLabel),
-            requestCodeFilePicker
-        )
     }
 
     @Suppress("UNUSED_PARAMETER")
