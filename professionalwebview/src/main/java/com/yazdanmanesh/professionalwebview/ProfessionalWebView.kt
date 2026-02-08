@@ -28,20 +28,10 @@ class ProfessionalWebView : WebView {
     private var mActivity: WeakReference<Activity?>? = null
     private val mPermittedHostnames: MutableList<String> = LinkedList()
 
-    /**
-     * File upload callback for platform versions prior to Android 5.0
-     */
-    private var mFileUploadCallbackFirst: ValueCallback<Uri?>? = null
-
-    /**
-     * File upload callback for Android 5.0+
-     */
     private var mFileUploadCallbackSecond: ValueCallback<Array<Uri?>?>? = null
-    private var mLastError: Long = 0
     private var mLanguageIso3: String? = null
     private var mRequestCodeFilePicker = REQUEST_CODE_FILE_PICKER
     private var mCustomWebChromeClient: WebChromeClient? = null
-    private var mGeolocationEnabled = false
     private var mUploadableFileTypes = "*/*"
     private val mHttpHeaders: MutableMap<String, String> = HashMap()
     var mRequest: PermissionRequest? = null
@@ -71,7 +61,6 @@ class ProfessionalWebView : WebView {
             settings.javaScriptEnabled = true
             settings.setGeolocationEnabled(true)
         }
-        mGeolocationEnabled = enabled
     }
 
     fun setUploadableFileTypes(mimeType: String) {
@@ -110,10 +99,7 @@ class ProfessionalWebView : WebView {
         if (requestCode == mRequestCodeFilePicker) {
             if (resultCode == Activity.RESULT_OK) {
                 intent?.let {
-                    if (mFileUploadCallbackFirst != null) {
-                        mFileUploadCallbackFirst?.onReceiveValue(it.data)
-                        mFileUploadCallbackFirst = null
-                    } else if (mFileUploadCallbackSecond != null) {
+                    if (mFileUploadCallbackSecond != null) {
                         val dataUris = try {
                             if (it.dataString != null) {
                                 arrayOf(Uri.parse(it.dataString))
@@ -133,9 +119,7 @@ class ProfessionalWebView : WebView {
                     }
                 }
             } else {
-                mFileUploadCallbackFirst?.onReceiveValue(null)
                 mFileUploadCallbackSecond?.onReceiveValue(null)
-                mFileUploadCallbackFirst = null
                 mFileUploadCallbackSecond = null
             }
         }
@@ -247,7 +231,7 @@ class ProfessionalWebView : WebView {
             ): Boolean {
                 val allowMultiple =
                     fileChooserParams.mode == FileChooserParams.MODE_OPEN_MULTIPLE
-                openFileInput(null, filePathCallback, allowMultiple)
+                openFileInput(filePathCallback, allowMultiple)
                 return true
             }
 
@@ -459,14 +443,6 @@ class ProfessionalWebView : WebView {
         return false
     }
 
-    private fun setLastError() {
-        mLastError = System.currentTimeMillis()
-    }
-
-    private fun hasError(): Boolean {
-        return mLastError + 500 >= System.currentTimeMillis()
-    }
-
     private val fileUploadPromptLabel: String
         get() {
             try {
@@ -511,12 +487,9 @@ class ProfessionalWebView : WebView {
     }
 
     private fun openFileInput(
-        fileUploadCallbackFirst: ValueCallback<Uri?>?,
         fileUploadCallbackSecond: ValueCallback<Array<Uri?>?>?,
         allowMultiple: Boolean
     ) {
-        mFileUploadCallbackFirst?.onReceiveValue(null)
-        mFileUploadCallbackFirst = fileUploadCallbackFirst
         mFileUploadCallbackSecond?.onReceiveValue(null)
         mFileUploadCallbackSecond = fileUploadCallbackSecond
 
@@ -588,9 +561,6 @@ class ProfessionalWebView : WebView {
             } catch (e: MissingResourceException) {
                 LANGUAGE_DEFAULT_ISO3
             }
-
-        val isFileUploadAvailable: Boolean
-            get() = true
 
         fun handleDownload(context: Context, fromUrl: String?, toFilename: String?): Boolean {
             val request = DownloadManager.Request(Uri.parse(fromUrl))
