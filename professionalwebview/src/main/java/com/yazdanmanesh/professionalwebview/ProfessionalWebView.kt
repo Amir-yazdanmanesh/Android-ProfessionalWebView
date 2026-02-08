@@ -25,18 +25,18 @@ import java.util.*
 
 class ProfessionalWebView : WebView {
 
-    private var mActivity: WeakReference<Activity?>? = null
-    private val mPermittedHostnames: MutableList<String> = LinkedList()
+    private var activityRef: WeakReference<Activity?>? = null
+    private val permittedHostnamesList: MutableList<String> = LinkedList()
 
-    private var mFileUploadCallbackSecond: ValueCallback<Array<Uri?>?>? = null
-    private var mLanguageIso3: String? = null
-    private var mRequestCodeFilePicker = REQUEST_CODE_FILE_PICKER
-    private var mCustomWebChromeClient: WebChromeClient? = null
-    private var mUploadableFileTypes = "*/*"
-    private val mHttpHeaders: MutableMap<String, String> = HashMap()
-    var mRequest: PermissionRequest? = null
-    var mCallback: GeolocationPermissions.Callback? = null
-    var locationOrigin: String? = null
+    private var fileUploadCallback: ValueCallback<Array<Uri?>?>? = null
+    private var languageIso3Cache: String? = null
+    private var requestCodeFilePicker = REQUEST_CODE_FILE_PICKER
+    private var customWebChromeClient: WebChromeClient? = null
+    private var uploadableFileTypes = "*/*"
+    private val httpHeaders: MutableMap<String, String> = HashMap()
+    private var permissionRequest: PermissionRequest? = null
+    private var geolocationCallback: GeolocationPermissions.Callback? = null
+    private var geolocationOrigin: String? = null
 
     constructor(context: Context) : super(context) {
         init(context)
@@ -53,7 +53,7 @@ class ProfessionalWebView : WebView {
     }
 
     override fun setWebChromeClient(client: WebChromeClient?) {
-        mCustomWebChromeClient = client
+        customWebChromeClient = client
     }
 
     fun setGeolocationEnabled(enabled: Boolean) {
@@ -64,7 +64,7 @@ class ProfessionalWebView : WebView {
     }
 
     fun setUploadableFileTypes(mimeType: String) {
-        mUploadableFileTypes = mimeType
+        uploadableFileTypes = mimeType
     }
 
     @JvmOverloads
@@ -96,10 +96,10 @@ class ProfessionalWebView : WebView {
     }
 
     fun onActivityResult(requestCode: Int, resultCode: Int, intent: Intent?) {
-        if (requestCode == mRequestCodeFilePicker) {
+        if (requestCode == requestCodeFilePicker) {
             if (resultCode == Activity.RESULT_OK) {
                 intent?.let {
-                    if (mFileUploadCallbackSecond != null) {
+                    if (fileUploadCallback != null) {
                         val dataUris = try {
                             if (it.dataString != null) {
                                 arrayOf(Uri.parse(it.dataString))
@@ -114,42 +114,42 @@ class ProfessionalWebView : WebView {
                         } catch (ignored: Exception) {
                             null
                         }
-                        mFileUploadCallbackSecond?.onReceiveValue(dataUris)
-                        mFileUploadCallbackSecond = null
+                        fileUploadCallback?.onReceiveValue(dataUris)
+                        fileUploadCallback = null
                     }
                 }
             } else {
-                mFileUploadCallbackSecond?.onReceiveValue(null)
-                mFileUploadCallbackSecond = null
+                fileUploadCallback?.onReceiveValue(null)
+                fileUploadCallback = null
             }
         }
     }
 
     fun addHttpHeader(name: String, value: String) {
-        mHttpHeaders[name] = value
+        httpHeaders[name] = value
     }
 
     fun removeHttpHeader(name: String) {
-        mHttpHeaders.remove(name)
+        httpHeaders.remove(name)
     }
 
     fun addPermittedHostname(hostname: String) {
-        mPermittedHostnames.add(hostname)
+        permittedHostnamesList.add(hostname)
     }
 
     fun addPermittedHostnames(collection: Collection<String>?) {
-        collection?.let { mPermittedHostnames.addAll(it) }
+        collection?.let { permittedHostnamesList.addAll(it) }
     }
 
     val permittedHostnames: List<String>
-        get() = mPermittedHostnames
+        get() = permittedHostnamesList
 
     fun removePermittedHostname(hostname: String) {
-        mPermittedHostnames.remove(hostname)
+        permittedHostnamesList.remove(hostname)
     }
 
     fun clearPermittedHostnames() {
-        mPermittedHostnames.clear()
+        permittedHostnamesList.clear()
     }
 
     fun onBackPressed(): Boolean {
@@ -200,9 +200,9 @@ class ProfessionalWebView : WebView {
             return
         }
         if (context is Activity) {
-            mActivity = WeakReference(context)
+            activityRef = WeakReference(context)
         }
-        mLanguageIso3 = languageIso3
+        languageIso3Cache = languageIso3
         isFocusable = true
         isFocusableInTouchMode = true
         isSaveEnabled = true
@@ -236,43 +236,43 @@ class ProfessionalWebView : WebView {
             }
 
             override fun onProgressChanged(view: WebView, newProgress: Int) {
-                mCustomWebChromeClient?.onProgressChanged(view, newProgress)
+                customWebChromeClient?.onProgressChanged(view, newProgress)
             }
 
             override fun onReceivedTitle(view: WebView, title: String) {
-                mCustomWebChromeClient?.onReceivedTitle(view, title)
+                customWebChromeClient?.onReceivedTitle(view, title)
             }
 
             override fun onReceivedIcon(view: WebView, icon: Bitmap) {
-                mCustomWebChromeClient?.onReceivedIcon(view, icon)
+                customWebChromeClient?.onReceivedIcon(view, icon)
             }
 
             override fun onReceivedTouchIconUrl(view: WebView, url: String, precomposed: Boolean) {
-                mCustomWebChromeClient?.onReceivedTouchIconUrl(view, url, precomposed)
+                customWebChromeClient?.onReceivedTouchIconUrl(view, url, precomposed)
             }
 
             override fun onShowCustomView(view: View, callback: CustomViewCallback) {
-                mCustomWebChromeClient?.onShowCustomView(view, callback)
+                customWebChromeClient?.onShowCustomView(view, callback)
             }
 
             override fun onHideCustomView() {
-                mCustomWebChromeClient?.onHideCustomView() ?: super.onHideCustomView()
+                customWebChromeClient?.onHideCustomView() ?: super.onHideCustomView()
             }
 
             override fun onCreateWindow(
                 view: WebView, isDialog: Boolean, isUserGesture: Boolean, resultMsg: Message
             ): Boolean {
-                return mCustomWebChromeClient?.onCreateWindow(
+                return customWebChromeClient?.onCreateWindow(
                     view, isDialog, isUserGesture, resultMsg
                 ) ?: super.onCreateWindow(view, isDialog, isUserGesture, resultMsg)
             }
 
             override fun onRequestFocus(view: WebView) {
-                mCustomWebChromeClient?.onRequestFocus(view) ?: super.onRequestFocus(view)
+                customWebChromeClient?.onRequestFocus(view) ?: super.onRequestFocus(view)
             }
 
             override fun onCloseWindow(view: WebView) {
-                mCustomWebChromeClient?.onCloseWindow(view) ?: super.onCloseWindow(view)
+                customWebChromeClient?.onCloseWindow(view) ?: super.onCloseWindow(view)
             }
 
             override fun onJsAlert(
@@ -281,7 +281,7 @@ class ProfessionalWebView : WebView {
                 message: String,
                 result: JsResult
             ): Boolean {
-                return mCustomWebChromeClient?.onJsAlert(view, url, message, result)
+                return customWebChromeClient?.onJsAlert(view, url, message, result)
                     ?: super.onJsAlert(view, url, message, result)
             }
 
@@ -291,7 +291,7 @@ class ProfessionalWebView : WebView {
                 message: String,
                 result: JsResult
             ): Boolean {
-                return mCustomWebChromeClient?.onJsConfirm(view, url, message, result)
+                return customWebChromeClient?.onJsConfirm(view, url, message, result)
                     ?: super.onJsConfirm(view, url, message, result)
             }
 
@@ -302,14 +302,14 @@ class ProfessionalWebView : WebView {
                 defaultValue: String,
                 result: JsPromptResult
             ): Boolean {
-                return mCustomWebChromeClient?.onJsPrompt(view, url, message, defaultValue, result)
+                return customWebChromeClient?.onJsPrompt(view, url, message, defaultValue, result)
                     ?: super.onJsPrompt(view, url, message, defaultValue, result)
             }
 
             override fun onJsBeforeUnload(
                 view: WebView, url: String, message: String, result: JsResult
             ): Boolean {
-                return mCustomWebChromeClient?.onJsBeforeUnload(view, url, message, result)
+                return customWebChromeClient?.onJsBeforeUnload(view, url, message, result)
                     ?: super.onJsBeforeUnload(view, url, message, result)
             }
 
@@ -320,9 +320,9 @@ class ProfessionalWebView : WebView {
                         Manifest.permission.ACCESS_FINE_LOCATION
                     ) != PackageManager.PERMISSION_GRANTED
                 ) {
-                    mCallback = callback
-                    locationOrigin = origin
-                    mActivity?.get()?.let {
+                    geolocationCallback = callback
+                    geolocationOrigin = origin
+                    activityRef?.get()?.let {
                         ActivityCompat.requestPermissions(
                             it,
                             arrayOf(Manifest.permission.ACCESS_FINE_LOCATION),
@@ -335,7 +335,7 @@ class ProfessionalWebView : WebView {
             }
 
             override fun onGeolocationPermissionsHidePrompt() {
-                mCustomWebChromeClient?.onGeolocationPermissionsHidePrompt()
+                customWebChromeClient?.onGeolocationPermissionsHidePrompt()
                     ?: super.onGeolocationPermissionsHidePrompt()
             }
 
@@ -344,8 +344,8 @@ class ProfessionalWebView : WebView {
                     context.checkSelfPermission(Manifest.permission.CAMERA) != PackageManager.PERMISSION_GRANTED &&
                     request.resources.contains(PermissionRequest.RESOURCE_VIDEO_CAPTURE)
                 ) {
-                    mRequest = request
-                    mActivity?.get()?.let {
+                    permissionRequest = request
+                    activityRef?.get()?.let {
                         ActivityCompat.requestPermissions(
                             it,
                             arrayOf(Manifest.permission.CAMERA),
@@ -358,27 +358,27 @@ class ProfessionalWebView : WebView {
             }
 
             override fun onPermissionRequestCanceled(request: PermissionRequest) {
-                mCustomWebChromeClient?.onPermissionRequestCanceled(request)
+                customWebChromeClient?.onPermissionRequestCanceled(request)
                     ?: super.onPermissionRequestCanceled(request)
             }
 
             override fun onConsoleMessage(consoleMessage: ConsoleMessage): Boolean {
-                return mCustomWebChromeClient?.onConsoleMessage(consoleMessage)
+                return customWebChromeClient?.onConsoleMessage(consoleMessage)
                     ?: super.onConsoleMessage(consoleMessage)
             }
 
             override fun getDefaultVideoPoster(): Bitmap? {
-                return mCustomWebChromeClient?.defaultVideoPoster
+                return customWebChromeClient?.defaultVideoPoster
                     ?: super.getDefaultVideoPoster()
             }
 
             override fun getVideoLoadingProgressView(): View? {
-                return mCustomWebChromeClient?.videoLoadingProgressView
+                return customWebChromeClient?.videoLoadingProgressView
                     ?: super.getVideoLoadingProgressView()
             }
 
             override fun getVisitedHistory(callback: ValueCallback<Array<String>>) {
-                mCustomWebChromeClient?.getVisitedHistory(callback)
+                customWebChromeClient?.getVisitedHistory(callback)
                     ?: super.getVisitedHistory(callback)
             }
         })
@@ -386,15 +386,15 @@ class ProfessionalWebView : WebView {
 
     override fun loadUrl(url: String, additionalHttpHeaders: MutableMap<String, String>) {
         val mergedHeaders = additionalHttpHeaders.toMutableMap()
-        if (mHttpHeaders.isNotEmpty()) {
-            mergedHeaders.putAll(mHttpHeaders)
+        if (httpHeaders.isNotEmpty()) {
+            mergedHeaders.putAll(httpHeaders)
         }
         super.loadUrl(url, mergedHeaders)
     }
 
     override fun loadUrl(url: String) {
-        if (mHttpHeaders.isNotEmpty()) {
-            super.loadUrl(url, mHttpHeaders)
+        if (httpHeaders.isNotEmpty()) {
+            super.loadUrl(url, httpHeaders)
         } else {
             super.loadUrl(url)
         }
@@ -409,7 +409,7 @@ class ProfessionalWebView : WebView {
         url: String, preventCaching: Boolean, additionalHttpHeaders: MutableMap<String, String>
     ) {
         val finalUrl = if (preventCaching) makeUrlUnique(url) else url
-        val headers = additionalHttpHeaders.ifEmpty { mHttpHeaders }
+        val headers = additionalHttpHeaders.ifEmpty { httpHeaders }
         loadUrl(finalUrl, headers)
     }
 
@@ -431,7 +431,7 @@ class ProfessionalWebView : WebView {
                 return false
             }
 
-            for (expectedHost in mPermittedHostnames) {
+            for (expectedHost in permittedHostnamesList) {
                 if (actualHost == expectedHost || actualHost.endsWith(".$expectedHost")) {
                     return true
                 }
@@ -446,7 +446,7 @@ class ProfessionalWebView : WebView {
     private val fileUploadPromptLabel: String
         get() {
             try {
-                return when (mLanguageIso3) {
+                return when (languageIso3Cache) {
                     "zho" -> decodeBase64("6YCJ5oup5LiA5Liq5paH5Lu2")
                     "spa" -> decodeBase64("RWxpamEgdW4gYXJjaGl2bw==")
                     "hin" -> decodeBase64("4KSP4KSVIOCkq+CkvOCkvuCkh+CksiDgpJrgpYHgpKjgpYfgpII=")
@@ -487,23 +487,23 @@ class ProfessionalWebView : WebView {
     }
 
     private fun openFileInput(
-        fileUploadCallbackSecond: ValueCallback<Array<Uri?>?>?,
+        callback: ValueCallback<Array<Uri?>?>?,
         allowMultiple: Boolean
     ) {
-        mFileUploadCallbackSecond?.onReceiveValue(null)
-        mFileUploadCallbackSecond = fileUploadCallbackSecond
+        fileUploadCallback?.onReceiveValue(null)
+        fileUploadCallback = callback
 
         val intent = Intent(Intent.ACTION_GET_CONTENT).apply {
             addCategory(Intent.CATEGORY_OPENABLE)
-            type = mUploadableFileTypes
+            type = uploadableFileTypes
             if (allowMultiple) {
                 putExtra(Intent.EXTRA_ALLOW_MULTIPLE, true)
             }
         }
 
-        mActivity?.get()?.startActivityForResult(
+        activityRef?.get()?.startActivityForResult(
             Intent.createChooser(intent, fileUploadPromptLabel),
-            mRequestCodeFilePicker
+            requestCodeFilePicker
         )
     }
 
@@ -516,19 +516,19 @@ class ProfessionalWebView : WebView {
         val granted = grantResults.isNotEmpty() && grantResults[0] == PackageManager.PERMISSION_GRANTED
         if (requestCode == CAMERA_REQUEST_CODE) {
             if (granted) {
-                mRequest?.grant(mRequest?.resources)
+                permissionRequest?.grant(permissionRequest?.resources)
             } else {
-                mRequest?.deny()
+                permissionRequest?.deny()
             }
-            mRequest = null
+            permissionRequest = null
         } else if (requestCode == LOCATION_REQUEST_CODE) {
             if (granted) {
-                mCallback?.invoke(locationOrigin, true, false)
+                geolocationCallback?.invoke(geolocationOrigin, true, false)
             } else {
-                mCallback?.invoke(locationOrigin, false, false)
+                geolocationCallback?.invoke(geolocationOrigin, false, false)
             }
-            mCallback = null
-            locationOrigin = null
+            geolocationCallback = null
+            geolocationOrigin = null
         }
     }
 
