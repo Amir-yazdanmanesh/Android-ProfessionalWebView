@@ -5,65 +5,83 @@ import android.graphics.Bitmap
 import android.net.Uri
 import android.os.Bundle
 import android.util.Log
-import android.view.View
 import android.webkit.WebView
 import android.widget.Toast
-import androidx.activity.OnBackPressedCallback
+import androidx.activity.compose.BackHandler
+import androidx.activity.compose.setContent
+import androidx.activity.enableEdgeToEdge
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AppCompatActivity
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.systemBarsPadding
+import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
 import com.yazdanmanesh.professionalwebview.BrowserWebViewClient
+import com.yazdanmanesh.professionalwebview.ProfessionalWebView
 import com.yazdanmanesh.professionalwebview.SpecialUrlDetector
 import com.yazdanmanesh.professionalwebview.SpecialUrlDetectorImpl
 import com.yazdanmanesh.professionalwebview.WebViewClientListener
-import com.yazdanmanesh.sample.databinding.ActivityMainBinding
+import com.yazdanmanesh.professionalwebview.rememberProfessionalWebViewState
 
 class MainActivity : AppCompatActivity(), WebViewClientListener {
 
-    private lateinit var binding: ActivityMainBinding
+    private var isLoading by mutableStateOf(false)
 
     private val filePickerLauncher = registerForActivityResult(
         ActivityResultContracts.OpenMultipleDocuments()
     ) { uris ->
-        binding.browserWebView.onFilePickerResult(uris)
+        webViewState?.webView?.onFilePickerResult(uris)
     }
+
+    private var webViewState: com.yazdanmanesh.professionalwebview.ProfessionalWebViewState? = null
 
     override fun onCreate(savedInstanceState: Bundle?) {
+        enableEdgeToEdge()
         super.onCreate(savedInstanceState)
-        binding = ActivityMainBinding.inflate(layoutInflater)
-        setContentView(binding.root)
 
-        binding.browserWebView.setFilePickerLauncher { mimeType, _ ->
-            filePickerLauncher.launch(arrayOf(mimeType))
-        }
+        setContent {
+            MaterialTheme {
+                val state = rememberProfessionalWebViewState()
+                webViewState = state
 
-        val specialUrlDetectorImpl = SpecialUrlDetectorImpl(this)
-        val browserWebViewClient = BrowserWebViewClient(specialUrlDetectorImpl)
-        browserWebViewClient.webViewClientListener = this
-        binding.browserWebView.webViewClient = browserWebViewClient
-        navigate("https://example.com/")
+                Box(modifier = Modifier.fillMaxSize().systemBarsPadding()) {
+                    ProfessionalWebView(
+                        state = state,
+                        modifier = Modifier.fillMaxSize(),
+                        onCreated = { webView ->
+                            webView.setFilePickerLauncher { mimeType, _ ->
+                                filePickerLauncher.launch(arrayOf(mimeType))
+                            }
 
-        onBackPressedDispatcher.addCallback(this, object : OnBackPressedCallback(true) {
-            override fun handleOnBackPressed() {
-                if (binding.browserWebView.onBackPressed()) {
-                    finish()
+                            val specialUrlDetector = SpecialUrlDetectorImpl(this@MainActivity)
+                            val browserWebViewClient = BrowserWebViewClient(specialUrlDetector)
+                            browserWebViewClient.webViewClientListener = this@MainActivity
+                            webView.webViewClient = browserWebViewClient
+                            webView.loadUrl("https://www.google.com/")
+                        },
+                    )
+
+                    if (isLoading) {
+                        CircularProgressIndicator(
+                            modifier = Modifier.align(Alignment.Center),
+                        )
+                    }
+                }
+
+                BackHandler {
+                    val finished = state.webView?.onBackPressed() ?: true
+                    if (finished) {
+                        finish()
+                    }
                 }
             }
-        })
-    }
-
-    override fun onResume() {
-        super.onResume()
-        binding.browserWebView.onResume()
-    }
-
-    override fun onPause() {
-        binding.browserWebView.onPause()
-        super.onPause()
-    }
-
-    override fun onDestroy() {
-        binding.browserWebView.onDestroy()
-        super.onDestroy()
+        }
     }
 
     override fun handleTelephone(tel: String) {
@@ -108,7 +126,7 @@ class MainActivity : AppCompatActivity(), WebViewClientListener {
     }
 
     override fun onPageStarted(webView: WebView, url: String?, favicon: Bitmap?) {
-        binding.webviewLoading.visibility = View.VISIBLE
+        isLoading = true
     }
 
     override fun onReceivedError(
@@ -118,7 +136,7 @@ class MainActivity : AppCompatActivity(), WebViewClientListener {
     }
 
     override fun onPageFinished(webView: WebView, errorCode: Int, url: String?) {
-        binding.webviewLoading.visibility = View.GONE
+        isLoading = false
     }
 
     private fun openExternalDialog(
@@ -133,14 +151,10 @@ class MainActivity : AppCompatActivity(), WebViewClientListener {
             startActivity(intent)
         } else {
             when {
-                fallbackUrl != null -> navigate(fallbackUrl)
+                fallbackUrl != null -> webViewState?.webView?.loadUrl(fallbackUrl)
                 else -> Toast.makeText(this, "Unable to open", Toast.LENGTH_SHORT).show()
             }
         }
-    }
-
-    private fun navigate(url: String) {
-        binding.browserWebView.loadUrl(url)
     }
 
     override fun onRequestPermissionsResult(
@@ -148,7 +162,7 @@ class MainActivity : AppCompatActivity(), WebViewClientListener {
         permissions: Array<out String>,
         grantResults: IntArray
     ) {
-        binding.browserWebView.onRequestPermissionsResult(requestCode, permissions, grantResults)
+        webViewState?.webView?.onRequestPermissionsResult(requestCode, permissions, grantResults)
         super.onRequestPermissionsResult(requestCode, permissions, grantResults)
     }
 
