@@ -17,11 +17,16 @@
 package com.yazdanmanesh.professionalwebview
 
 import android.graphics.Bitmap
+import android.net.http.SslError
+import android.webkit.HttpAuthHandler
+import android.webkit.SslErrorHandler
 import android.webkit.WebView
-import com.yazdanmanesh.professionalwebview.SpecialUrlDetector
 
 interface WebViewClientListener {
     fun handleTelephone(tel: String)
+    fun handleEmail(emailAddress: String) {}
+    fun handleSms(smsUri: String) {}
+    fun handleAppLink(appLink: SpecialUrlDetector.UrlType.AppLink): Boolean = false
     fun handleNonHttpAppLink(nonHttpAppLink: SpecialUrlDetector.UrlType.NonHttpAppLink): Boolean
 
     fun onPageStarted(
@@ -37,9 +42,18 @@ interface WebViewClientListener {
         failingUrl: String?
     )
 
-
     fun onPageFinished(
         webView: WebView, errorCode: Int,
         url: String?
     )
+
+    fun onSslErrorReceived(handler: SslErrorHandler, error: SslError) {
+        handler.cancel()
+    }
+
+    fun requiresAuthentication(host: String?, realm: String?, handler: HttpAuthHandler) {
+        handler.cancel()
+    }
+
+    fun onRenderProcessGone(): Boolean = true
 }
