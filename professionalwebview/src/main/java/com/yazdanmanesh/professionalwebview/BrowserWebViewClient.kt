@@ -22,8 +22,6 @@ import android.os.Build
 import android.webkit.*
 import androidx.annotation.RequiresApi
 import androidx.annotation.UiThread
-import androidx.annotation.WorkerThread
-
 class BrowserWebViewClient(
     private val specialUrlDetector: SpecialUrlDetector,
 ) : WebViewClient() {
@@ -119,14 +117,6 @@ class BrowserWebViewClient(
         super.onReceivedError(view, errorCode, description, failingUrl)
         this.errorCode = errorCode
         webViewClientListener?.onReceivedError(view, errorCode, description, failingUrl)
-    }
-
-    @WorkerThread
-    override fun shouldInterceptRequest(
-        webView: WebView,
-        request: WebResourceRequest
-    ): WebResourceResponse? {
-        return super.shouldInterceptRequest(webView, request)
     }
 
     @UiThread
