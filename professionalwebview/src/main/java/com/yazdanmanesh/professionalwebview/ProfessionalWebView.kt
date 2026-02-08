@@ -6,6 +6,7 @@ import android.app.Activity
 import android.app.DownloadManager
 import android.content.Context
 import android.content.Intent
+import android.content.pm.ApplicationInfo
 import android.content.pm.PackageManager
 import android.graphics.Bitmap
 import android.net.Uri
@@ -19,7 +20,6 @@ import android.view.View
 import android.view.ViewGroup
 import android.webkit.*
 import androidx.core.app.ActivityCompat
-import java.io.UnsupportedEncodingException
 import java.lang.ref.WeakReference
 import java.util.*
 
@@ -46,7 +46,7 @@ class ProfessionalWebView : WebView {
     private val mHttpHeaders: MutableMap<String, String> = HashMap()
     var mRequest: PermissionRequest? = null
     var mCallback: GeolocationPermissions.Callback? = null
-    var locationOrigin:String? = null
+    var locationOrigin: String? = null
 
     constructor(context: Context) : super(context) {
         init(context)
@@ -74,36 +74,10 @@ class ProfessionalWebView : WebView {
         mGeolocationEnabled = enabled
     }
 
-
     fun setUploadableFileTypes(mimeType: String) {
         mUploadableFileTypes = mimeType
     }
-    /**
-     * Loads and displays the provided HTML source text
-     *
-     * @param html       the HTML source text to load
-     * @param baseUrl    the URL to use as the page's base URL
-     * @param historyUrl the URL to use for the page's history entry
-     * @param encoding   the encoding or charset of the HTML source text
-     */
-    /**
-     * Loads and displays the provided HTML source text
-     *
-     * @param html       the HTML source text to load
-     * @param baseUrl    the URL to use as the page's base URL
-     * @param historyUrl the URL to use for the page's history entry
-     */
-    /**
-     * Loads and displays the provided HTML source text
-     *
-     * @param html    the HTML source text to load
-     * @param baseUrl the URL to use as the page's base URL
-     */
-    /**
-     * Loads and displays the provided HTML source text
-     *
-     * @param html the HTML source text to load
-     */
+
     @JvmOverloads
     fun loadHtml(
         html: String?,
@@ -127,23 +101,17 @@ class ProfessionalWebView : WebView {
     }
 
     fun onDestroy() {
-        // Remove this view from its parent
         (parent as? ViewGroup)?.removeView(this)
-
-        // Remove all child views from this view
         removeAllViews()
-
-        // Destroy this view
         destroy()
     }
-
 
     fun onActivityResult(requestCode: Int, resultCode: Int, intent: Intent?) {
         if (requestCode == mRequestCodeFilePicker) {
             if (resultCode == Activity.RESULT_OK) {
                 intent?.let {
                     if (mFileUploadCallbackFirst != null) {
-                        mFileUploadCallbackFirst!!.onReceiveValue(it.data)
+                        mFileUploadCallbackFirst?.onReceiveValue(it.data)
                         mFileUploadCallbackFirst = null
                     } else if (mFileUploadCallbackSecond != null) {
                         val dataUris = try {
@@ -160,7 +128,7 @@ class ProfessionalWebView : WebView {
                         } catch (ignored: Exception) {
                             null
                         }
-                        mFileUploadCallbackSecond!!.onReceiveValue(dataUris)
+                        mFileUploadCallbackSecond?.onReceiveValue(dataUris)
                         mFileUploadCallbackSecond = null
                     }
                 }
@@ -173,36 +141,10 @@ class ProfessionalWebView : WebView {
         }
     }
 
-    /**
-     * Adds an additional HTTP header that will be sent along with every HTTP `GET` request
-     *
-     *
-     * This does only affect the main requests, not the requests to included resources (e.g. images)
-     *
-     *
-     * If you later want to delete an HTTP header that was previously added this way, call `removeHttpHeader()`
-     *
-     *
-     * The `WebView` implementation may in some cases overwrite headers that you set or unset
-     *
-     * @param name  the name of the HTTP header to add
-     * @param value the value of the HTTP header to send
-     */
     fun addHttpHeader(name: String, value: String) {
         mHttpHeaders[name] = value
     }
 
-    /**
-     * Removes one of the HTTP headers that have previously been added via `addHttpHeader()`
-     *
-     *
-     * If you want to unset a pre-defined header, set it to an empty string with `addHttpHeader()` instead
-     *
-     *
-     * The `WebView` implementation may in some cases overwrite headers that you set or unset
-     *
-     * @param name the name of the HTTP header to remove
-     */
     fun removeHttpHeader(name: String) {
         mHttpHeaders.remove(name)
     }
@@ -212,7 +154,7 @@ class ProfessionalWebView : WebView {
     }
 
     fun addPermittedHostnames(collection: Collection<String>?) {
-        mPermittedHostnames.addAll(collection!!)
+        collection?.let { mPermittedHostnames.addAll(it) }
     }
 
     val permittedHostnames: List<String>
@@ -268,9 +210,8 @@ class ProfessionalWebView : WebView {
         }
     }
 
-
+    @SuppressLint("SetJavaScriptEnabled")
     private fun init(context: Context) {
-        // in IDE's preview mode
         if (isInEditMode) {
             return
         }
@@ -289,16 +230,14 @@ class ProfessionalWebView : WebView {
             domStorageEnabled = true
             databaseEnabled = true
             mixedContentMode = WebSettings.MIXED_CONTENT_COMPATIBILITY_MODE
-            setThirdPartyCookiesEnabled(true)
-            setWebContentsDebuggingEnabled(true)
             setSupportMultipleWindows(false)
             javaScriptCanOpenWindowsAutomatically = false
-            // Keeping these off is less critical but still a good idea, especially if your app is not
-            // using file:// or content:// URLs.
-            allowFileAccess = false
             allowContentAccess = false
         }
+        setThirdPartyCookiesEnabled(true)
 
+        val isDebuggable = (context.applicationInfo.flags and ApplicationInfo.FLAG_DEBUGGABLE) != 0
+        setWebContentsDebuggingEnabled(isDebuggable)
 
         super.setWebChromeClient(object : WebChromeClient() {
             override fun onShowFileChooser(
@@ -332,34 +271,24 @@ class ProfessionalWebView : WebView {
                 mCustomWebChromeClient?.onShowCustomView(view, callback)
             }
 
-
             override fun onHideCustomView() {
                 mCustomWebChromeClient?.onHideCustomView() ?: super.onHideCustomView()
             }
-
 
             override fun onCreateWindow(
                 view: WebView, isDialog: Boolean, isUserGesture: Boolean, resultMsg: Message
             ): Boolean {
                 return mCustomWebChromeClient?.onCreateWindow(
-                    view,
-                    isDialog,
-                    isUserGesture,
-                    resultMsg
-                )
-                    ?: super.onCreateWindow(view, isDialog, isUserGesture, resultMsg)
+                    view, isDialog, isUserGesture, resultMsg
+                ) ?: super.onCreateWindow(view, isDialog, isUserGesture, resultMsg)
             }
 
             override fun onRequestFocus(view: WebView) {
-                if (mCustomWebChromeClient != null) {
-                    mCustomWebChromeClient!!.onRequestFocus(view)
-                } else {
-                    super.onRequestFocus(view)
-                }
+                mCustomWebChromeClient?.onRequestFocus(view) ?: super.onRequestFocus(view)
             }
 
             override fun onCloseWindow(view: WebView) {
-                mCustomWebChromeClient?.onRequestFocus(view) ?: super.onRequestFocus(view)
+                mCustomWebChromeClient?.onCloseWindow(view) ?: super.onCloseWindow(view)
             }
 
             override fun onJsAlert(
@@ -372,7 +301,6 @@ class ProfessionalWebView : WebView {
                     ?: super.onJsAlert(view, url, message, result)
             }
 
-
             override fun onJsConfirm(
                 view: WebView,
                 url: String,
@@ -383,7 +311,6 @@ class ProfessionalWebView : WebView {
                     ?: super.onJsConfirm(view, url, message, result)
             }
 
-
             override fun onJsPrompt(
                 view: WebView,
                 url: String,
@@ -393,7 +320,6 @@ class ProfessionalWebView : WebView {
             ): Boolean {
                 return mCustomWebChromeClient?.onJsPrompt(view, url, message, defaultValue, result)
                     ?: super.onJsPrompt(view, url, message, defaultValue, result)
-
             }
 
             override fun onJsBeforeUnload(
@@ -401,7 +327,6 @@ class ProfessionalWebView : WebView {
             ): Boolean {
                 return mCustomWebChromeClient?.onJsBeforeUnload(view, url, message, result)
                     ?: super.onJsBeforeUnload(view, url, message, result)
-
             }
 
             override fun onGeolocationPermissionsShowPrompt(
@@ -420,7 +345,6 @@ class ProfessionalWebView : WebView {
                             LOCATION_REQUEST_CODE,
                         )
                     }
-
                 } else {
                     callback.invoke(origin, true, false)
                 }
@@ -432,17 +356,12 @@ class ProfessionalWebView : WebView {
             }
 
             override fun onPermissionRequest(request: PermissionRequest) {
-                // Check if the device's Android version is Marshmallow or later
-                // and if the app lacks permission to access the camera and the request is for video capture
                 if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M &&
                     context.checkSelfPermission(Manifest.permission.CAMERA) != PackageManager.PERMISSION_GRANTED &&
                     request.resources.contains(PermissionRequest.RESOURCE_VIDEO_CAPTURE)
                 ) {
-                    // Store the permission request
                     mRequest = request
-                    // Retrieve the activity associated with this client
                     mActivity?.get()?.let {
-                        // Request CAMERA permission from the user
                         ActivityCompat.requestPermissions(
                             it,
                             arrayOf(Manifest.permission.CAMERA),
@@ -450,8 +369,7 @@ class ProfessionalWebView : WebView {
                         )
                     }
                 } else {
-                    // If permission is already granted or not required, grant the requested resources
-                    request.grant(request.resources);
+                    request.grant(request.resources)
                 }
             }
 
@@ -463,7 +381,6 @@ class ProfessionalWebView : WebView {
             override fun onConsoleMessage(consoleMessage: ConsoleMessage): Boolean {
                 return mCustomWebChromeClient?.onConsoleMessage(consoleMessage)
                     ?: super.onConsoleMessage(consoleMessage)
-
             }
 
             override fun getDefaultVideoPoster(): Bitmap? {
@@ -479,7 +396,6 @@ class ProfessionalWebView : WebView {
             override fun getVisitedHistory(callback: ValueCallback<Array<String>>) {
                 mCustomWebChromeClient?.getVisitedHistory(callback)
                     ?: super.getVisitedHistory(callback)
-
             }
         })
     }
@@ -492,7 +408,6 @@ class ProfessionalWebView : WebView {
         super.loadUrl(url, mergedHeaders)
     }
 
-
     override fun loadUrl(url: String) {
         if (mHttpHeaders.isNotEmpty()) {
             super.loadUrl(url, mHttpHeaders)
@@ -500,7 +415,6 @@ class ProfessionalWebView : WebView {
             super.loadUrl(url)
         }
     }
-
 
     fun loadUrl(url: String, preventCaching: Boolean) {
         val finalUrl = if (preventCaching) makeUrlUnique(url) else url
@@ -515,55 +429,35 @@ class ProfessionalWebView : WebView {
         loadUrl(finalUrl, headers)
     }
 
-    /**
-     * Checks whether a URL is permitted based on a set of permitted hostnames.
-     * @param url The URL to check.
-     * @return true if the URL is permitted, false otherwise.
-     */
     fun isPermittedUrl(url: String?): Boolean {
-        // If the URL is null or empty, it's not permitted
         if (url.isNullOrEmpty()) {
             return false
         }
 
         try {
             val parsedUrl = Uri.parse(url)
-
-            // Get the hostname of the URL that is to be checked
             val actualHost = parsedUrl.host ?: return false
 
-            // If the hostname could not be determined or contains invalid characters
             if (!actualHost.matches(Regex("^[a-zA-Z0-9._!~*')(;:&=+$,%\\[\\]-]*$"))) {
-                // Prevent mismatches between interpretations by `Uri` and `WebView`
                 return false
             }
 
-            // Get the user information from the authority part of the URL that is to be checked
             val actualUserInformation = parsedUrl.userInfo
-
-            // If the user information contains invalid characters
             if (actualUserInformation != null && !actualUserInformation.matches(Regex("^[a-zA-Z0-9._!~*')(;:&=+$,%-]*$"))) {
-                // Prevent mismatches between interpretations by `Uri` and `WebView`
                 return false
             }
 
-            // For every hostname in the set of permitted hosts
             for (expectedHost in mPermittedHostnames) {
-                // If the two hostnames match or if the actual host is a subdomain of the expected host
                 if (actualHost == expectedHost || actualHost.endsWith(".$expectedHost")) {
-                    // The actual hostname of the URL to be checked is allowed
                     return true
                 }
             }
         } catch (e: Exception) {
-            // Handle parsing exceptions or other errors
             e.printStackTrace()
         }
 
-        // The actual hostname of the URL to be checked is not allowed since there were no matches
         return false
     }
-
 
     private fun setLastError() {
         mLastError = System.currentTimeMillis()
@@ -571,12 +465,8 @@ class ProfessionalWebView : WebView {
 
     private fun hasError(): Boolean {
         return mLastError + 500 >= System.currentTimeMillis()
-    }// return English translation by default
+    }
 
-    /**
-     * Provides localizations for the 25 most widely spoken languages that have an ISO 639-2/T code.
-     * @return The label for the file upload prompts as a string.
-     */
     private val fileUploadPromptLabel: String
         get() {
             try {
@@ -605,19 +495,14 @@ class ProfessionalWebView : WebView {
                     "ita" -> decodeBase64("U2NlZ2xpIHVuIGZpbGU=")
                     "tha" -> decodeBase64("4LmA4Lil4Li34Lit4LiB4LmE4Lif4Lil4LmM4Lir4LiZ4Li24LmI4LiH")
                     "guj" -> decodeBase64("4KqP4KqVIOCqq+CqvuCqh+CqsuCqqOCrhyDgqqrgqrjgqoLgqqY=")
-                    else -> "Choose a file" // Return English translation by default
+                    else -> "Choose a file"
                 }
             } catch (ignored: Exception) {
                 ignored.printStackTrace()
             }
-            return "Choose a file" // Return English translation by default
+            return "Choose a file"
         }
 
-    /**
-     * Decodes a Base64 encoded string.
-     * @param encoded The Base64 encoded string to decode.
-     * @return The decoded string.
-     */
     private fun decodeBase64(encoded: String): String {
         return String(
             Base64.decode(encoded, Base64.DEFAULT),
@@ -630,13 +515,11 @@ class ProfessionalWebView : WebView {
         fileUploadCallbackSecond: ValueCallback<Array<Uri?>?>?,
         allowMultiple: Boolean
     ) {
-        // Clear any existing callbacks
         mFileUploadCallbackFirst?.onReceiveValue(null)
         mFileUploadCallbackFirst = fileUploadCallbackFirst
         mFileUploadCallbackSecond?.onReceiveValue(null)
         mFileUploadCallbackSecond = fileUploadCallbackSecond
 
-        // Create intent to open file picker
         val intent = Intent(Intent.ACTION_GET_CONTENT).apply {
             addCategory(Intent.CATEGORY_OPENABLE)
             type = mUploadableFileTypes
@@ -645,43 +528,42 @@ class ProfessionalWebView : WebView {
             }
         }
 
-        // Start activity for result
         mActivity?.get()?.startActivityForResult(
             Intent.createChooser(intent, fileUploadPromptLabel),
             mRequestCodeFilePicker
         )
     }
 
+    @Suppress("UNUSED_PARAMETER")
     fun onRequestPermissionsResult(
         requestCode: Int,
         permissions: Array<out String>,
         grantResults: IntArray
     ) {
+        val granted = grantResults.isNotEmpty() && grantResults[0] == PackageManager.PERMISSION_GRANTED
         if (requestCode == CAMERA_REQUEST_CODE) {
-            mRequest?.grant(mRequest?.resources)
+            if (granted) {
+                mRequest?.grant(mRequest?.resources)
+            } else {
+                mRequest?.deny()
+            }
+            mRequest = null
         } else if (requestCode == LOCATION_REQUEST_CODE) {
-            mCallback?.invoke(locationOrigin, true, false)
+            if (granted) {
+                mCallback?.invoke(locationOrigin, true, false)
+            } else {
+                mCallback?.invoke(locationOrigin, false, false)
+            }
+            mCallback = null
+            locationOrigin = null
         }
     }
 
-
     companion object {
-        const val PACKAGE_NAME_DOWNLOAD_MANAGER = "com.android.providers.downloads"
         private const val REQUEST_CODE_FILE_PICKER = 51426
         const val CAMERA_REQUEST_CODE = 113
         const val LOCATION_REQUEST_CODE = 115
         private const val LANGUAGE_DEFAULT_ISO3 = "eng"
-        private val CHARSET_DEFAULT = Charsets.UTF_8
-
-        // Alternative browsers that have their own rendering engine
-        private val ALTERNATIVE_BROWSERS = arrayOf(
-            "org.mozilla.firefox",
-            "com.android.chrome",
-            "com.opera.browser",
-            "org.mozilla.firefox_beta",
-            "com.chrome.beta",
-            "com.opera.browser.beta"
-        )
 
         private fun makeUrlUnique(url: String): String {
             val unique = StringBuilder()
@@ -702,47 +584,29 @@ class ProfessionalWebView : WebView {
 
         private val languageIso3: String
             get() = try {
-                Locale.getDefault().isO3Language.toLowerCase(Locale.US)
+                Locale.getDefault().isO3Language.lowercase(Locale.US)
             } catch (e: MissingResourceException) {
                 LANGUAGE_DEFAULT_ISO3
             }
 
-        @Throws(IllegalArgumentException::class, UnsupportedEncodingException::class)
-        private fun decodeBase64(base64: String?): String {
-            val bytes = Base64.decode(base64, Base64.DEFAULT)
-            return String(bytes, CHARSET_DEFAULT)
-        }
-
-        /**
-         * Returns whether file uploads can be used on the current device.
-         */
         val isFileUploadAvailable: Boolean
-            get() = isFileUploadAvailable(false)
+            get() = true
 
-        /**
-         * Returns whether file uploads can be used on the current device.
-         */
-        private fun isFileUploadAvailable(needsCorrectMimeType: Boolean): Boolean {
-            return (!needsCorrectMimeType )
-        }
-
-        /**
-         * Handles a download by loading the file from `fromUrl` and saving it to `toFilename` on the external storage.
-         */
         fun handleDownload(context: Context, fromUrl: String?, toFilename: String?): Boolean {
             val request = DownloadManager.Request(Uri.parse(fromUrl))
-                request.setNotificationVisibility(DownloadManager.Request.VISIBILITY_VISIBLE_NOTIFY_COMPLETED)
+            request.setNotificationVisibility(DownloadManager.Request.VISIBILITY_VISIBLE_NOTIFY_COMPLETED)
             request.setDestinationInExternalPublicDir(Environment.DIRECTORY_DOWNLOADS, toFilename)
             val dm = context.getSystemService(Context.DOWNLOAD_SERVICE) as DownloadManager
             return try {
                 dm.enqueue(request)
                 true
             } catch (e: IllegalArgumentException) {
-                // Show the settings screen where the user can enable the download manager app again
                 openAppSettings(context, PACKAGE_NAME_DOWNLOAD_MANAGER)
                 false
             }
         }
+
+        private const val PACKAGE_NAME_DOWNLOAD_MANAGER = "com.android.providers.downloads"
 
         private fun openAppSettings(context: Context, packageName: String): Boolean {
             return try {
