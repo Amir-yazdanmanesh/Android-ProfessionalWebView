@@ -33,17 +33,17 @@ interface SpecialUrlDetector {
     fun determineType(uriString: String?): UrlType
 
     sealed class UrlType {
-        class Web(val webAddress: String) : UrlType()
-        class Telephone(val telephoneNumber: String) : UrlType()
-        class Email(val emailAddress: String) : UrlType()
-        class Sms(val telephoneNumber: String) : UrlType()
-        class AppLink(
+        data class Web(val webAddress: String) : UrlType()
+        data class Telephone(val telephoneNumber: String) : UrlType()
+        data class Email(val emailAddress: String) : UrlType()
+        data class Sms(val telephoneNumber: String) : UrlType()
+        data class AppLink(
             val appIntent: Intent? = null,
             val excludedComponents: List<ComponentName>? = null,
             val uriString: String
         ) : UrlType()
 
-        class NonHttpAppLink(
+        data class NonHttpAppLink(
             val uriString: String,
             val intent: Intent,
             val fallbackUrl: String?,
@@ -51,15 +51,15 @@ interface SpecialUrlDetector {
             val fallbackIntent: Intent? = null
         ) : UrlType()
 
-        class SearchQuery(val query: String) : UrlType()
-        class Unknown(val uriString: String) : UrlType()
-        class ExtractedTrackingLink(val extractedUrl: String) : UrlType()
+        data class SearchQuery(val query: String) : UrlType()
+        data class Unknown(val uriString: String) : UrlType()
+        data class ExtractedTrackingLink(val extractedUrl: String) : UrlType()
     }
 }
 
 class SpecialUrlDetectorImpl(
     private val context: Context,
-    private val customDeeplinkSchemes: Map<String, DeeplinkConfig> = emptyMap()
+    private val customDeeplinkSchemes: List<DeeplinkConfig> = emptyList()
 ) : SpecialUrlDetector {
 
     data class DeeplinkConfig(
@@ -200,15 +200,15 @@ class SpecialUrlDetectorImpl(
     }
 
     private fun getDeeplinkParam(uriString: String, param: String): String? {
-        val matchingConfig = customDeeplinkSchemes.entries.find { (_, config) ->
+        val matchingConfig = customDeeplinkSchemes.find { config ->
             uriString.startsWith("${config.scheme}://")
         }
 
         if (matchingConfig != null) {
             val appLinkData = Uri.parse(uriString)
             val paramName = when (param) {
-                "url" -> matchingConfig.value.urlParam
-                "title" -> matchingConfig.value.titleParam
+                "url" -> matchingConfig.urlParam
+                "title" -> matchingConfig.titleParam
                 else -> param
             }
             return appLinkData.getQueryParameter(paramName)
