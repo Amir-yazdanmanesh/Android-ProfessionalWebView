@@ -11,12 +11,9 @@
         android:layout_width="match_parent"
         android:layout_height="match_parent"
         android:fadeScrollbars="true"
-        android:focusable="true"
-        android:focusableInTouchMode="true"
         android:overScrollMode="always"
         android:scrollbarSize="4dp"
-        android:scrollbarStyle="outsideInset"
-        app:layout_behavior="@string/appbar_scrolling_view_behavior" />
+        android:scrollbarStyle="outsideInset" />
 
     <ProgressBar
         android:visibility="gone"

@@ -7,52 +7,63 @@ import android.os.Bundle
 import android.util.Log
 import android.view.View
 import android.webkit.WebView
-import android.widget.ProgressBar
 import android.widget.Toast
 import androidx.activity.OnBackPressedCallback
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AppCompatActivity
 import com.yazdanmanesh.professionalwebview.BrowserWebViewClient
-import com.yazdanmanesh.professionalwebview.ProfessionalWebView
 import com.yazdanmanesh.professionalwebview.SpecialUrlDetector
 import com.yazdanmanesh.professionalwebview.SpecialUrlDetectorImpl
 import com.yazdanmanesh.professionalwebview.WebViewClientListener
+import com.yazdanmanesh.sample.databinding.ActivityMainBinding
 
 class MainActivity : AppCompatActivity(), WebViewClientListener {
 
-    private lateinit var webView: ProfessionalWebView
-    private lateinit var loading: ProgressBar
+    private lateinit var binding: ActivityMainBinding
 
     private val filePickerLauncher = registerForActivityResult(
         ActivityResultContracts.OpenMultipleDocuments()
     ) { uris ->
-        webView.onFilePickerResult(uris)
+        binding.browserWebView.onFilePickerResult(uris)
     }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        setContentView(R.layout.activity_main)
+        binding = ActivityMainBinding.inflate(layoutInflater)
+        setContentView(binding.root)
 
-        webView = findViewById(R.id.browserWebView)
-        loading = findViewById(R.id.webview_loading)
-
-        webView.setFilePickerLauncher { mimeType, _ ->
+        binding.browserWebView.setFilePickerLauncher { mimeType, _ ->
             filePickerLauncher.launch(arrayOf(mimeType))
         }
 
         val specialUrlDetectorImpl = SpecialUrlDetectorImpl(this)
         val browserWebViewClient = BrowserWebViewClient(specialUrlDetectorImpl)
         browserWebViewClient.webViewClientListener = this
-        webView.webViewClient = browserWebViewClient
+        binding.browserWebView.webViewClient = browserWebViewClient
         navigate("https://example.com/")
 
         onBackPressedDispatcher.addCallback(this, object : OnBackPressedCallback(true) {
             override fun handleOnBackPressed() {
-                if (webView.onBackPressed()) {
+                if (binding.browserWebView.onBackPressed()) {
                     finish()
                 }
             }
         })
+    }
+
+    override fun onResume() {
+        super.onResume()
+        binding.browserWebView.onResume()
+    }
+
+    override fun onPause() {
+        binding.browserWebView.onPause()
+        super.onPause()
+    }
+
+    override fun onDestroy() {
+        binding.browserWebView.onDestroy()
+        super.onDestroy()
     }
 
     override fun handleTelephone(tel: String) {
@@ -97,7 +108,7 @@ class MainActivity : AppCompatActivity(), WebViewClientListener {
     }
 
     override fun onPageStarted(webView: WebView, url: String?, favicon: Bitmap?) {
-        loading.visibility = View.VISIBLE
+        binding.webviewLoading.visibility = View.VISIBLE
     }
 
     override fun onReceivedError(
@@ -107,7 +118,7 @@ class MainActivity : AppCompatActivity(), WebViewClientListener {
     }
 
     override fun onPageFinished(webView: WebView, errorCode: Int, url: String?) {
-        loading.visibility = View.GONE
+        binding.webviewLoading.visibility = View.GONE
     }
 
     private fun openExternalDialog(
@@ -129,7 +140,7 @@ class MainActivity : AppCompatActivity(), WebViewClientListener {
     }
 
     private fun navigate(url: String) {
-        webView.loadUrl(url)
+        binding.browserWebView.loadUrl(url)
     }
 
     override fun onRequestPermissionsResult(
@@ -137,7 +148,7 @@ class MainActivity : AppCompatActivity(), WebViewClientListener {
         permissions: Array<out String>,
         grantResults: IntArray
     ) {
-        webView.onRequestPermissionsResult(requestCode, permissions, grantResults)
+        binding.browserWebView.onRequestPermissionsResult(requestCode, permissions, grantResults)
         super.onRequestPermissionsResult(requestCode, permissions, grantResults)
     }
 
