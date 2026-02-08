@@ -12,6 +12,10 @@
 # Keep DeeplinkConfig data class
 -keep class com.yazdanmanesh.professionalwebview.SpecialUrlDetectorImpl$DeeplinkConfig { *; }
 
+# Keep Compose wrapper
+-keep class com.yazdanmanesh.professionalwebview.ProfessionalWebViewState { *; }
+-keep class com.yazdanmanesh.professionalwebview.ProfessionalWebViewComposableKt { *; }
+
 # Keep WebView JS interface methods
 -keepclassmembers class * {
     @android.webkit.JavascriptInterface <methods>;
