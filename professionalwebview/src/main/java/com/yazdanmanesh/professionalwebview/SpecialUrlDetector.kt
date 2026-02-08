@@ -58,8 +58,15 @@ interface SpecialUrlDetector {
 }
 
 class SpecialUrlDetectorImpl(
-    private val context: Context
+    private val context: Context,
+    private val customDeeplinkSchemes: Map<String, DeeplinkConfig> = emptyMap()
 ) : SpecialUrlDetector {
+
+    data class DeeplinkConfig(
+        val scheme: String,
+        val urlParam: String = "url",
+        val titleParam: String = "title"
+    )
 
     override fun determineType(uri: Uri): UrlType {
         val uriString = uri.toString()
@@ -78,24 +85,20 @@ class SpecialUrlDetectorImpl(
         }
     }
 
-    private fun buildTelephone(uriString: String): UrlType = UrlType.Telephone(uriString.removePrefix("$TEL_SCHEME:").truncate(
-        PHONE_MAX_LENGTH
-    ))
+    private fun buildTelephone(uriString: String): UrlType =
+        UrlType.Telephone(uriString.removePrefix("$TEL_SCHEME:").truncate(PHONE_MAX_LENGTH))
 
     private fun buildTelephonePrompt(uriString: String): UrlType =
         UrlType.Telephone(uriString.removePrefix("$TELPROMPT_SCHEME:").truncate(PHONE_MAX_LENGTH))
 
-    private fun buildEmail(uriString: String): UrlType = UrlType.Email(uriString.truncate(
-        EMAIL_MAX_LENGTH
-    ))
+    private fun buildEmail(uriString: String): UrlType =
+        UrlType.Email(uriString.truncate(EMAIL_MAX_LENGTH))
 
-    private fun buildSms(uriString: String): UrlType = UrlType.Sms(uriString.removePrefix("$SMS_SCHEME:").truncate(
-        SMS_MAX_LENGTH
-    ))
+    private fun buildSms(uriString: String): UrlType =
+        UrlType.Sms(uriString.removePrefix("$SMS_SCHEME:").truncate(SMS_MAX_LENGTH))
 
-    private fun buildSmsTo(uriString: String): UrlType = UrlType.Sms(uriString.removePrefix("$SMSTO_SCHEME:").truncate(
-        SMS_MAX_LENGTH
-    ))
+    private fun buildSmsTo(uriString: String): UrlType =
+        UrlType.Sms(uriString.removePrefix("$SMSTO_SCHEME:").truncate(SMS_MAX_LENGTH))
 
     private fun processUrl(uriString: String): UrlType {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
@@ -112,8 +115,9 @@ class SpecialUrlDetectorImpl(
                     return UrlType.AppLink(excludedComponents = excludedComponents, uriString = uriString)
                 }
             } catch (e: URISyntaxException) {
-
-                throw e
+                return UrlType.Unknown(uriString)
+            } catch (e: Exception) {
+                return UrlType.Web(uriString)
             }
         }
         return UrlType.Web(uriString)
@@ -169,36 +173,53 @@ class SpecialUrlDetectorImpl(
     private fun buildIntent(uriString: String): UrlType {
         return try {
             val intent = Intent.parseUri(uriString, URI_NO_FLAG)
-            val title = intent.getStringExtra(EXTRA_FALLBACK_URL).let { result ->
-                if (result.isNullOrEmpty() && uriString.contains("zarebin://open")) {
-                    getTitleInDeeplink(uriString)
+            intent.addCategory(Intent.CATEGORY_BROWSABLE)
+            intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+
+            val fallbackUrl = intent.getStringExtra(EXTRA_FALLBACK_URL).let { result ->
+                if (result.isNullOrEmpty()) {
+                    getDeeplinkParam(uriString, "url")
                 } else result
             }
-            val fallbackUrl = intent.getStringExtra(EXTRA_FALLBACK_URL).let { result ->
-                if (result.isNullOrEmpty() && uriString.contains("zarebin://open")) {
-                    getLinkInDeeplink(uriString)
+            val title = intent.getStringExtra(EXTRA_FALLBACK_URL).let { result ->
+                if (result.isNullOrEmpty()) {
+                    getDeeplinkParam(uriString, "title")
                 } else result
             }
             val fallbackIntent = buildFallbackIntent(fallbackUrl)
-            UrlType.NonHttpAppLink(uriString = uriString, intent = intent, fallbackUrl = fallbackUrl,title=title, fallbackIntent = fallbackIntent)
+            UrlType.NonHttpAppLink(
+                uriString = uriString,
+                intent = intent,
+                fallbackUrl = fallbackUrl,
+                title = title,
+                fallbackIntent = fallbackIntent
+            )
         } catch (e: URISyntaxException) {
-            return UrlType.Unknown(uriString)
+            UrlType.Unknown(uriString)
         }
     }
 
-    private fun getLinkInDeeplink(uriString: String): String {
-        val appLinkData = Uri.parse(uriString)
-        return appLinkData.getQueryParameter("url").toString()
-    }
+    private fun getDeeplinkParam(uriString: String, param: String): String? {
+        val matchingConfig = customDeeplinkSchemes.entries.find { (_, config) ->
+            uriString.startsWith("${config.scheme}://")
+        }
 
-    private fun getTitleInDeeplink(uriString: String): String {
-        val appLinkData = Uri.parse(uriString)
-        return appLinkData.getQueryParameter("title").toString()
+        if (matchingConfig != null) {
+            val appLinkData = Uri.parse(uriString)
+            val paramName = when (param) {
+                "url" -> matchingConfig.value.urlParam
+                "title" -> matchingConfig.value.titleParam
+                else -> param
+            }
+            return appLinkData.getQueryParameter(paramName)
+        }
+
+        return null
     }
 
     @SuppressLint("WrongConstant")
     private fun buildFallbackIntent(fallbackUrl: String?): Intent? {
-        if (determineType(fallbackUrl) is UrlType.Web) {
+        if (fallbackUrl != null && determineType(fallbackUrl) is UrlType.Web) {
             return Intent.parseUri(fallbackUrl, URI_NO_FLAG)
         }
         return null
@@ -210,7 +231,8 @@ class SpecialUrlDetectorImpl(
         return determineType(Uri.parse(uriString))
     }
 
-    private fun String.truncate(maxLength: Int): String = if (this.length > maxLength) this.substring(0, maxLength) else this
+    private fun String.truncate(maxLength: Int): String =
+        if (this.length > maxLength) this.substring(0, maxLength) else this
 
     companion object {
         private const val TEL_SCHEME = "tel"
